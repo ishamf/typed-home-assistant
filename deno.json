@@ -1,0 +1,12 @@
+{
+  "tasks": {
+    "dev": "deno run --watch main.ts"
+  },
+  "imports": {
+    "@babel/template": "npm:@babel/template@^7.24.0",
+    "@babel/types": "npm:@babel/types@^7.24.0",
+    "@std/dotenv": "jsr:@std/dotenv@^0.224.0",
+    "dotenv": "npm:dotenv@^16.4.5",
+    "home-assistant-js-websocket": "npm:home-assistant-js-websocket@^9.3.0"
+  }
+}
