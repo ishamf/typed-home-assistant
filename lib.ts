@@ -6,6 +6,25 @@ import {
   subscribeServices,
 } from "home-assistant-js-websocket";
 
+export type EntityDefinitionType = {
+  [entityId: string]: {
+    state: unknown;
+    attributes: {
+      [attributeId: string]: unknown;
+    };
+  };
+};
+
+export type ServiceDefinitionType = {
+  [domainId: string]: {
+    [serviceId: string]: {
+      fields: {
+        [fieldId: string]: unknown;
+      };
+    };
+  };
+};
+
 export async function connect() {
   await load({ export: true });
 
@@ -25,9 +44,14 @@ export async function connect() {
   return await createConnection({ auth });
 }
 
-export function createRuntime<Entities extends Record<string, unknown>>() {
+export function createRuntime<
+  Entities extends EntityDefinitionType,
+  Services extends ServiceDefinitionType,
+>() {
   const handlersByEntityName = {} as {
-    [K in keyof Entities]: ((state: Entities[K]) => void)[] | undefined;
+    [K in keyof Entities]:
+      | ((state: Entities[K]["state"]) => void)[]
+      | undefined;
   };
 
   const entityLastChanged = {} as {
@@ -60,7 +84,7 @@ export function createRuntime<Entities extends Record<string, unknown>>() {
   return {
     onStateChange<K extends keyof Entities>(
       entityName: K,
-      handler: (state: Entities[K]) => void,
+      handler: (state: Entities[K]["state"]) => void,
     ) {
       let currentHandlers = handlersByEntityName[entityName];
 
