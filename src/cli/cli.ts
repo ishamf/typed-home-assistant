@@ -1,3 +1,9 @@
+/**
+ * @module
+ *
+ * This module provides a CLI to generate the runtime file. See the readme for more information.
+ */
+
 import { loadEnv, parse, stringify } from "../deps.ts";
 import { chalk, input, parsePath, password, program } from "./deps.ts";
 import { generate } from "./generator.ts";
@@ -91,9 +97,7 @@ async function main() {
   Deno.exit(0);
 }
 
-if (import.meta.main) {
-  main().catch((e) => {
-    console.error(e);
-    Deno.exit(1);
-  });
-}
+main().catch((e) => {
+  console.error(e);
+  Deno.exit(1);
+});
