@@ -15,10 +15,13 @@ async function main() {
 
   await loadEnv({ export: true });
 
+  let needToUpdateEnv = false;
+
   let url = Deno.env.get("HOME_ASSISTANT_URL");
 
   if (!url) {
     url = await input({ message: "Enter your Home Assistant instance URL:" });
+    needToUpdateEnv = true;
   }
 
   let token = Deno.env.get("HOME_ASSISTANT_TOKEN");
@@ -28,29 +31,34 @@ async function main() {
       message:
         `Paste in your long-lived access token (create it in ${url}/profile/security > Long-lived access tokens)`,
     });
+    needToUpdateEnv = true;
   }
 
-  // Write it to the .env file
-  let currentEnv: Record<string, string> = {};
+  if (needToUpdateEnv) {
+    // Write it to the .env file
+    let currentEnv: Record<string, string> = {};
 
-  try {
-    currentEnv = parse(await Deno.readTextFile(ENV_FILENAME));
-  } catch (e) {
-    if (!(e instanceof Deno.errors.NotFound)) {
-      throw e;
+    try {
+      currentEnv = parse(await Deno.readTextFile(ENV_FILENAME));
+    } catch (e) {
+      if (!(e instanceof Deno.errors.NotFound)) {
+        throw e;
+      }
     }
+
+    await Deno.writeTextFile(
+      ENV_FILENAME,
+      stringify({
+        ...currentEnv,
+        HOME_ASSISTANT_URL: url,
+        HOME_ASSISTANT_TOKEN: token,
+      }),
+    );
+
+    console.log(`The URL and token has been saved to ${chalk.bold(".env")}.`);
+
+    await loadEnv({ export: true });
   }
-
-  await Deno.writeTextFile(
-    ENV_FILENAME,
-    stringify({
-      ...currentEnv,
-      HOME_ASSISTANT_URL: url,
-      HOME_ASSISTANT_TOKEN: token,
-    }),
-  );
-
-  await loadEnv({ export: true });
 
   const outputFile = program.opts().output;
 
@@ -71,8 +79,16 @@ async function main() {
   );
   await generate(outputFile);
   console.log(`${isNewFile ? "Generation" : "Update"} successful!`);
-  console.log(`Start writing your automations by importing the connection:`);
-  console.log(chalk.bold(`import ha from './${parsePath(outputFile).name}';`));
+
+  if (isNewFile) {
+    console.log(`Start writing your automations by importing the connection:`);
+    console.log(
+      chalk.bold(`import ha from './${parsePath(outputFile).name}';`),
+    );
+  }
+
+  // Seems home-assistant-websocket cannot be closed quickly, just exit immediately after the generation is done
+  Deno.exit(0);
 }
 
 if (import.meta.main) {

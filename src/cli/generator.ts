@@ -10,10 +10,11 @@ import {
 import { generate as babelGenerate, t, template } from "./deps.ts";
 
 import { connect, StateType } from "../lib.ts";
+import { PACKAGE_VERSION } from "../constants.ts";
 
 const outTemplate = template.program(
   `
-import { createRuntime, StateType } from "jsr:@isham/typed-home-assistant@^0.2";
+import { createRuntime, StateType } from "jsr:@isham/typed-home-assistant@^${PACKAGE_VERSION}";
 
 %%entities%%
 

@@ -11,9 +11,11 @@
       "npm:@inquirer/prompts@^5": "npm:@inquirer/prompts@5.0.2",
       "npm:@types/babel__generator@^7": "npm:@types/babel__generator@7.6.8",
       "npm:@types/babel__template@^7.4.4": "npm:@types/babel__template@7.4.4",
+      "npm:@types/semver@^7": "npm:@types/semver@7.5.8",
       "npm:chalk@^5.3.0": "npm:chalk@5.3.0",
       "npm:commander@^12": "npm:commander@12.0.0",
-      "npm:home-assistant-js-websocket@^9.3.0": "npm:home-assistant-js-websocket@9.3.0"
+      "npm:home-assistant-js-websocket@^9.3.0": "npm:home-assistant-js-websocket@9.3.0",
+      "npm:semver@7.6.0": "npm:semver@7.6.0"
     },
     "jsr": {
       "@std/assert@0.224.0": {
@@ -244,6 +246,10 @@
           "undici-types": "undici-types@5.26.5"
         }
       },
+      "@types/semver@7.5.8": {
+        "integrity": "sha512-I8EUhyrgfLrcTkzV3TSsGyl1tSuPrEDzr0yd5m90UgNxQkyDXULk3b6MlQqTCpZpNtWe1K0hzclnZkTcLBe2UQ==",
+        "dependencies": {}
+      },
       "@types/wrap-ansi@3.0.0": {
         "integrity": "sha512-ltIpx+kM7g/MLRZfkbL7EsCEjfzCcScLpkg37eXEtx5kmrAKBkTJwd1GIAjDSL8wTpM6Hzn5YO4pSb91BEwu1g==",
         "dependencies": {}
@@ -371,6 +377,12 @@
         "integrity": "sha512-OYu7XEzjkCQ3C5Ps3QIZsQfNpqoJyZZA99wd9aWd05NCtC5pWOkShK2mkL6HXQR6/Cy2lbNdPlZBpuQHXE63gA==",
         "dependencies": {}
       },
+      "lru-cache@6.0.0": {
+        "integrity": "sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==",
+        "dependencies": {
+          "yallist": "yallist@4.0.0"
+        }
+      },
       "mute-stream@1.0.0": {
         "integrity": "sha512-avsJQhyd+680gKXyG/sQc0nXaC6rBkPOfyHYcFb9+hdkqQkR9bdnkJ0AMZhke0oesPqIO+mFFJ+IdBc7mst4IA==",
         "dependencies": {}
@@ -386,6 +398,12 @@
       "safer-buffer@2.1.2": {
         "integrity": "sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==",
         "dependencies": {}
+      },
+      "semver@7.6.0": {
+        "integrity": "sha512-EnwXhrlwXMk9gKu5/flx5sv/an57AkRplG3hTK68W7FRDN+k+OWBj65M7719OkA82XLBxrcX0KSHj+X5COhOVg==",
+        "dependencies": {
+          "lru-cache": "lru-cache@6.0.0"
+        }
       },
       "signal-exit@4.1.0": {
         "integrity": "sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==",
@@ -442,6 +460,10 @@
           "string-width": "string-width@4.2.3",
           "strip-ansi": "strip-ansi@6.0.1"
         }
+      },
+      "yallist@4.0.0": {
+        "integrity": "sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A==",
+        "dependencies": {}
       }
     }
   },

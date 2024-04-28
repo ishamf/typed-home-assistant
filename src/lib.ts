@@ -6,7 +6,6 @@ import {
   type HassServiceTarget,
   loadEnv,
   subscribeEntities,
-  subscribeServices,
 } from "../src/deps.ts";
 
 export enum StateType {
@@ -39,9 +38,20 @@ export type ServiceDefinition = {
   };
 };
 
+/**
+ * Handler for when the state of an entity changes.
+ */
 export type StateChangeHandler<T> = (
+  /**
+   * The new state of the entity.
+   */
   state: T,
-  extra: { prevState: T },
+  extra: {
+    /**
+     * The previous state of the entity.
+     */
+    prevState: T;
+  },
 ) => void;
 
 export async function connect() {
@@ -63,10 +73,51 @@ export async function connect() {
   return await createConnection({ auth });
 }
 
+export interface Runtime<
+  Entities extends EntityDefinition,
+  Services extends ServiceDefinition,
+> {
+  /**
+   * Register a listener of when the state of an entity changes.
+   * @param entityName Name of the entity to listen to.
+   * @param handler Handler to call when the state changes.
+   */
+  onStateChange<K extends keyof Entities>(
+    entityName: K,
+    handler: StateChangeHandler<EntityStateType<Entities, K>>,
+  ): void;
+
+  /**
+   * Call a service in home assistant.
+   *
+   * @param fullServiceId The service ID to call.
+   * @param serviceData The params to pass to the service.
+   * @param target The target of the service call. e.g. for switch.turn_on, this would be {entity_id: ["switch.living_room_light"] }
+   */
+  callService<K extends keyof Services & string>(
+    fullServiceId: K,
+    serviceData?: Services[K]["fields"],
+    target?: Omit<HassServiceTarget, "entity_id"> & {
+      entity_id?:
+        | keyof Entities & string
+        | (keyof Entities & string)[]
+        | undefined;
+    },
+  ): Promise<unknown>;
+}
+
+/**
+ * Create a runtime for interacting with Home Assistant.
+ *
+ * You shouldn't need to call this function directly. Instead, use the CLI to generate a file that will export a runtime.
+ */
 export function createRuntime<
   Entities extends EntityDefinition,
   Services extends ServiceDefinition,
->(entityDefinition: Entities, _serviceDefinition: Services) {
+>(
+  entityDefinition: Entities,
+  _serviceDefinition: Services,
+): Runtime<Entities, Services> {
   let prevState: HassEntities | undefined;
 
   function convertEntityState<K extends keyof Entities>(
@@ -88,20 +139,14 @@ export function createRuntime<
       | undefined;
   };
 
-  const entityLastChanged = {} as {
-    [k: string]: Date;
-  };
-
   const connPromise = connect();
 
   connPromise.then((conn) => {
     subscribeEntities(conn, (state) => {
       for (const key in state) {
-        const currentLastChanged = new Date(state[key].last_changed);
-        // If it's not the first message
         if (
-          entityLastChanged[key] && prevState &&
-          entityLastChanged[key] < currentLastChanged
+          prevState &&
+          state[key].state !== prevState[key].state
         ) {
           const entityState = convertEntityState(
             key,
@@ -112,18 +157,16 @@ export function createRuntime<
             handler(entityState, { prevState: prevEntityState });
           });
         }
-
-        entityLastChanged[key] = currentLastChanged;
       }
 
       prevState = state;
     });
   });
 
-  return {
-    onStateChange<K extends keyof Entities>(
-      entityName: K,
-      handler: StateChangeHandler<EntityStateType<Entities, K>>,
+  const runtime: Runtime<Entities, Services> = {
+    onStateChange(
+      entityName,
+      handler,
     ) {
       let currentHandlers = handlersByEntityName[entityName];
 
@@ -134,15 +177,10 @@ export function createRuntime<
       currentHandlers.push(handler);
     },
 
-    async callService<K extends keyof Services & string>(
-      fullServiceId: K,
-      serviceData?: Services[K]["fields"],
-      target?: Omit<HassServiceTarget, "entity_id"> & {
-        entity_id?:
-          | keyof Entities & string
-          | (keyof Entities & string)[]
-          | undefined;
-      },
+    async callService(
+      fullServiceId,
+      serviceData,
+      target,
     ) {
       const splitServiceId = fullServiceId.split(".");
       if (splitServiceId.length !== 2) {
@@ -160,4 +198,6 @@ export function createRuntime<
       );
     },
   };
+
+  return runtime;
 }
