@@ -17,7 +17,9 @@ import { createRuntime, StateType } from "./lib.ts";
 
 %%entities%%
 
-export default createRuntime(entities);
+%%services%%
+
+export default createRuntime(entities, services);
 `,
   { plugins: ["typescript"] },
 );
@@ -101,8 +103,69 @@ export async function generate(output: string) {
     )],
   );
 
+  const servicesAst = t.variableDeclaration(
+    "const",
+    [t.variableDeclarator(
+      t.identifier("services"),
+      t.tsAsExpression(
+        t.objectExpression(
+          Object.keys(services).flatMap((domainId) => {
+            const domain = services[domainId];
+            return Object.keys(domain).map((serviceId) => {
+              const service = domain[serviceId];
+
+              return t.objectProperty(
+                t.stringLiteral(`${domainId}.${serviceId}`),
+                t.objectExpression([
+                  t.objectProperty(
+                    t.identifier("fields"),
+                    t.tsAsExpression(
+                      t.objectExpression(
+                        [],
+                      ),
+                      t.tsTypeLiteral(
+                        Object.keys(service.fields).map((fieldId) => {
+                          const field = service.fields[fieldId];
+
+                          const propertySignature = {
+                            ...t.tsPropertySignature(
+                              t.stringLiteral(fieldId),
+                              t.tsTypeAnnotation(
+                                "number" in (field.selector || {})
+                                  ? t.tsNumberKeyword()
+                                  : t.tsStringKeyword(),
+                              ),
+                            ),
+                            optional: !field.required,
+                          };
+
+                          if (field.description) {
+                            return t.addComment(
+                              propertySignature,
+                              "leading",
+                              field.description.split("\n").map((x) => "* " + x)
+                                .join("\n"),
+                            );
+                          }
+
+                          return propertySignature;
+                        }),
+                      ),
+                    ),
+                  ),
+                ]),
+              );
+            });
+          }),
+        ),
+        t.tsTypeReference(t.identifier("const")),
+      ),
+    )],
+  );
+
   const out = outTemplate({
     entities: entitiesAst,
+    services: servicesAst,
   });
 
   await writeFile(output, (babelGenerate(out)).code);

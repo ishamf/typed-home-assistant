@@ -1,7 +1,9 @@
 import {
+  callService,
   createConnection,
   createLongLivedTokenAuth,
   HassEntities,
+  HassServiceTarget,
   loadEnv,
   subscribeEntities,
   subscribeServices,
@@ -30,30 +32,9 @@ export type EntityStateType<
 > = StateTypeToRealType<Entities[K]["stateType"]>;
 
 export type ServiceDefinition = {
-  [domainId: string]: {
-    [serviceId: string]: {
-      fields: {
-        [fieldId: string]: { fieldType: StateType };
-      };
-    };
-  };
-};
-
-export type EntityDefinitionType = {
-  [entityId: string]: {
-    state: unknown;
-    attributes: {
-      [attributeId: string]: unknown;
-    };
-  };
-};
-
-export type ServiceDefinitionType = {
-  [domainId: string]: {
-    [serviceId: string]: {
-      fields: {
-        [fieldId: string]: unknown;
-      };
+  [fullServiceId: string]: {
+    fields: {
+      [fieldId: string]: unknown;
     };
   };
 };
@@ -85,7 +66,7 @@ export async function connect() {
 export function createRuntime<
   Entities extends EntityDefinition,
   Services extends ServiceDefinition,
->(entityDefinition: Entities) {
+>(entityDefinition: Entities, serviceDefinition: Services) {
   let prevState: HassEntities | undefined;
 
   function convertEntityState<K extends keyof Entities>(
@@ -109,7 +90,9 @@ export function createRuntime<
     [k: string]: Date;
   };
 
-  connect().then((conn) => {
+  const connPromise = connect();
+
+  connPromise.then((conn) => {
     subscribeEntities(conn, (state) => {
       for (const key in state) {
         const currentLastChanged = new Date(state[key].last_changed);
@@ -151,6 +134,32 @@ export function createRuntime<
       }
 
       currentHandlers.push(handler);
+    },
+
+    async callService<K extends keyof Services & string>(
+      fullServiceId: K,
+      serviceData?: Services[K]["fields"],
+      target?: Omit<HassServiceTarget, "entity_id"> & {
+        entity_id?:
+          | keyof Entities & string
+          | (keyof Entities & string)[]
+          | undefined;
+      },
+    ) {
+      const splitServiceId = fullServiceId.split(".");
+      if (splitServiceId.length !== 2) {
+        throw new Error("Unknown service id");
+      }
+
+      const [domainId, serviceId] = splitServiceId;
+
+      return callService(
+        await connPromise,
+        domainId,
+        serviceId,
+        serviceData,
+        target,
+      );
     },
   };
 }
