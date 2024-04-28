@@ -1,10 +1,43 @@
-import { load } from "@std/dotenv";
 import {
   createConnection,
   createLongLivedTokenAuth,
+  HassEntities,
+  loadEnv,
   subscribeEntities,
   subscribeServices,
-} from "home-assistant-js-websocket";
+} from "./deps.ts";
+
+export enum StateType {
+  Number,
+  String,
+}
+
+export type StateTypeToRealType<S> = S extends StateType.Number ? number
+  : string;
+
+export type EntityDefinition = {
+  [entityId: string]: {
+    stateType: StateType;
+    attributes: {
+      [attributeId: string]: { attrType: StateType };
+    };
+  };
+};
+
+export type EntityStateType<
+  Entities extends EntityDefinition,
+  K extends keyof Entities,
+> = StateTypeToRealType<Entities[K]["stateType"]>;
+
+export type ServiceDefinition = {
+  [domainId: string]: {
+    [serviceId: string]: {
+      fields: {
+        [fieldId: string]: { fieldType: StateType };
+      };
+    };
+  };
+};
 
 export type EntityDefinitionType = {
   [entityId: string]: {
@@ -25,8 +58,13 @@ export type ServiceDefinitionType = {
   };
 };
 
+export type StateChangeHandler<T> = (
+  state: T,
+  extra: { prevState: T },
+) => void;
+
 export async function connect() {
-  await load({ export: true });
+  await loadEnv({ export: true });
 
   const url = Deno.env.get("HOME_ASSISTANT_URL");
 
@@ -45,12 +83,25 @@ export async function connect() {
 }
 
 export function createRuntime<
-  Entities extends EntityDefinitionType,
-  Services extends ServiceDefinitionType,
->() {
+  Entities extends EntityDefinition,
+  Services extends ServiceDefinition,
+>(entityDefinition: Entities) {
+  let prevState: HassEntities | undefined;
+
+  function convertEntityState<K extends keyof Entities>(
+    key: K,
+    value: string,
+  ): EntityStateType<Entities, K> {
+    if (entityDefinition[key].stateType === StateType.Number) {
+      return parseFloat(value) as any;
+    }
+
+    return value as any;
+  }
+
   const handlersByEntityName = {} as {
     [K in keyof Entities]:
-      | ((state: Entities[K]["state"]) => void)[]
+      | StateChangeHandler<EntityStateType<Entities, K>>[]
       | undefined;
   };
 
@@ -64,16 +115,23 @@ export function createRuntime<
         const currentLastChanged = new Date(state[key].last_changed);
         // If it's not the first message
         if (
-          entityLastChanged[key] && entityLastChanged[key] < currentLastChanged
+          entityLastChanged[key] && prevState &&
+          entityLastChanged[key] < currentLastChanged
         ) {
-          const entityState = state[key].state as any;
+          const entityState = convertEntityState(
+            key,
+            state[key].state,
+          );
+          const prevEntityState = convertEntityState(key, prevState[key].state);
           handlersByEntityName[key]?.forEach((handler) => {
-            handler(entityState);
+            handler(entityState, { prevState: prevEntityState });
           });
         }
 
         entityLastChanged[key] = currentLastChanged;
       }
+
+      prevState = state;
     });
 
     subscribeServices(conn, (services) => {
@@ -84,7 +142,7 @@ export function createRuntime<
   return {
     onStateChange<K extends keyof Entities>(
       entityName: K,
-      handler: (state: Entities[K]["state"]) => void,
+      handler: StateChangeHandler<EntityStateType<Entities, K>>,
     ) {
       let currentHandlers = handlersByEntityName[entityName];
 
