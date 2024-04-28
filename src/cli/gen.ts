@@ -1,15 +1,15 @@
-import { connect, StateType } from "./lib.ts";
 import { writeFile } from "node:fs/promises";
 
 import {
-  generate as babelGenerate,
   HassEntities,
   HassServices,
   subscribeEntities,
   subscribeServices,
-  t,
-  template,
-} from "./deps.ts";
+} from "../deps.ts";
+
+import { generate as babelGenerate, t, template } from "./deps.ts";
+
+import { connect, StateType } from "../lib.ts";
 
 const outTemplate = template.program(
   `
@@ -31,19 +31,6 @@ function guessStateType(state: string) {
 
   return StateType.String;
 }
-
-const entityTemplate = template.expression(
-  `{
-    stateType: %%stateType%%,
-    attributes: %%attributes%%
-  }`,
-);
-
-const attributeTemplate = template.expression(
-  `{
-    attrType: %%attrType%%
-  }`,
-);
 
 const stateTypeAst = {
   [StateType.Number]: template.expression.ast(`StateType.Number`),
@@ -70,6 +57,19 @@ export async function generate(output: string) {
   ]);
 
   conn.close();
+
+  const entityTemplate = template.expression(
+    `{
+      stateType: %%stateType%%,
+      attributes: %%attributes%%
+    }`,
+  );
+
+  const attributeTemplate = template.expression(
+    `{
+      attrType: %%attrType%%
+    }`,
+  );
 
   const entitiesAst = t.variableDeclaration(
     "const",

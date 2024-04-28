@@ -7,7 +7,7 @@ import {
   loadEnv,
   subscribeEntities,
   subscribeServices,
-} from "./deps.ts";
+} from "../src/deps.ts";
 
 export enum StateType {
   Number,
@@ -66,7 +66,7 @@ export async function connect() {
 export function createRuntime<
   Entities extends EntityDefinition,
   Services extends ServiceDefinition,
->(entityDefinition: Entities, serviceDefinition: Services) {
+>(entityDefinition: Entities, _serviceDefinition: Services) {
   let prevState: HassEntities | undefined;
 
   function convertEntityState<K extends keyof Entities>(
@@ -74,9 +74,11 @@ export function createRuntime<
     value: string,
   ): EntityStateType<Entities, K> {
     if (entityDefinition[key].stateType === StateType.Number) {
+      // deno-lint-ignore no-explicit-any
       return parseFloat(value) as any;
     }
 
+    // deno-lint-ignore no-explicit-any
     return value as any;
   }
 

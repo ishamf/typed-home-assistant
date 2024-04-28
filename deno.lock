@@ -9,7 +9,9 @@
       "npm:@babel/types@^7.24.0": "npm:@babel/types@7.24.0",
       "npm:@types/babel__generator@^7": "npm:@types/babel__generator@7.6.8",
       "npm:@types/babel__template@^7": "npm:@types/babel__template@7.4.4",
+      "npm:@types/babel__template@^7.4.4": "npm:@types/babel__template@7.4.4",
       "npm:@types/node": "npm:@types/node@18.16.19",
+      "npm:commander@^12": "npm:commander@12.0.0",
       "npm:home-assistant-js-websocket@^9.3.0": "npm:home-assistant-js-websocket@9.3.0"
     },
     "jsr": {
@@ -137,6 +139,10 @@
       },
       "color-name@1.1.3": {
         "integrity": "sha512-72fSenhMw2HZMTVHeCA9KCmpEIbzWiQsjN+BHcBbS9vr1mtt+vJjPdksIBNUmKAW8TFUDPJK5SUU3QhE9NEXDw==",
+        "dependencies": {}
+      },
+      "commander@12.0.0": {
+        "integrity": "sha512-MwVNWlYjDTtOjX5PiD7o5pK0UrFU/OYgcJfjjK4RaHZETNtjJqrZa9Y9ds88+A+f+d5lv+561eZ+yCKoS3gbAA==",
         "dependencies": {}
       },
       "escape-string-regexp@1.0.5": {
