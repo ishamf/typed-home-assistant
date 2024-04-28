@@ -6,6 +6,8 @@ export const generate = babelGenerate.default;
 import { default as babelTemplate } from "npm:@babel/template@^7.24.0";
 export const template = babelTemplate.default;
 
+export { writeFile } from "node:fs/promises";
+
 export { default as t } from "npm:@babel/types@^7";
 
 export * from "npm:commander@^12";

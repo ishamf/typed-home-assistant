@@ -10,15 +10,18 @@ import {
   callService,
   createConnection,
   createLongLivedTokenAuth,
+  existsSync,
   type HassEntities,
   type HassServiceTarget,
-  loadEnv,
+  parse,
+  process,
+  readFile,
   subscribeEntities,
 } from "../src/deps.ts";
 
 /**
  * The type of the state of an entity. Only for internal use.
- * 
+ *
  * @internal
  */
 export enum StateType {
@@ -67,14 +70,25 @@ export type StateChangeHandler<T> = (
   },
 ) => void;
 
-export async function connect() {
-  await loadEnv({ export: true });
+export const ENV_FILENAME = ".env";
 
-  const url = Deno.env.get("HOME_ASSISTANT_URL");
+export async function loadEnv() {
+  const envFile = existsSync(ENV_FILENAME)
+    ? parse(await readFile(ENV_FILENAME, { encoding: "utf-8" }))
+    : {};
+  const processEnv = process.env;
+
+  return { ...envFile, ...processEnv };
+}
+
+export async function connect() {
+  const env = await loadEnv();
+
+  const url = env["HOME_ASSISTANT_URL"];
 
   if (!url) throw new Error("HOME_ASSISTANT_URL is not set");
 
-  const token = Deno.env.get("HOME_ASSISTANT_TOKEN");
+  const token = env["HOME_ASSISTANT_TOKEN"];
 
   if (!token) throw new Error("HOME_ASSISTANT_TOKEN is not set");
 
