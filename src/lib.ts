@@ -118,10 +118,6 @@ export function createRuntime<
 
       prevState = state;
     });
-
-    subscribeServices(conn, (services) => {
-      console.log(services);
-    });
   });
 
   return {
