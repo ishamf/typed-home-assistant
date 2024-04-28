@@ -2,6 +2,8 @@
   "name": "@isham/typed-home-assistant",
   "version": "0.1.0",
   "tasks": {
+    "lint": "deno lint",
+    "format": "deno lint --fix && deno fmt",
     "run-cli": "deno run --allow-net --allow-read --allow-write --allow-env ./src/cli/cli.ts"
   },
   "exports": {
