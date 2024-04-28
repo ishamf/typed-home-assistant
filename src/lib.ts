@@ -1,3 +1,11 @@
+/**
+ * @module
+ *
+ * Library for interacting with Home Assistant.
+ *
+ * Normally, you shouldn't need to import this module. Instead, you should use the CLI to generate a file that exports a runtime.
+ */
+
 import {
   callService,
   createConnection,
@@ -8,6 +16,11 @@ import {
   subscribeEntities,
 } from "../src/deps.ts";
 
+/**
+ * The type of the state of an entity. Only for internal use.
+ * 
+ * @internal
+ */
 export enum StateType {
   Number,
   String,
@@ -73,6 +86,9 @@ export async function connect() {
   return await createConnection({ auth });
 }
 
+/**
+ * The runtime for interacting with Home Assistant.
+ */
 export interface Runtime<
   Entities extends EntityDefinition,
   Services extends ServiceDefinition,
@@ -104,6 +120,15 @@ export interface Runtime<
         | undefined;
     },
   ): Promise<unknown>;
+
+  /**
+   * Get the current state of an entity.
+   *
+   * @param entityName Name of the entity to get the state of.
+   */
+  getEntityState<K extends keyof Entities & string>(
+    entityName: K,
+  ): EntityStateType<Entities, K>;
 }
 
 /**
@@ -119,6 +144,7 @@ export function createRuntime<
   _serviceDefinition: Services,
 ): Runtime<Entities, Services> {
   let prevState: HassEntities | undefined;
+  let currentState: HassEntities | undefined;
 
   function convertEntityState<K extends keyof Entities>(
     key: K,
@@ -143,6 +169,7 @@ export function createRuntime<
 
   connPromise.then((conn) => {
     subscribeEntities(conn, (state) => {
+      currentState = state;
       for (const key in state) {
         if (
           prevState &&
@@ -154,7 +181,12 @@ export function createRuntime<
           );
           const prevEntityState = convertEntityState(key, prevState[key].state);
           handlersByEntityName[key]?.forEach((handler) => {
-            handler(entityState, { prevState: prevEntityState });
+            try {
+              handler(entityState, { prevState: prevEntityState });
+            } catch (e) {
+              console.error(`A state handler for '${key}' threw an error:`);
+              console.error(e);
+            }
           });
         }
       }
@@ -196,6 +228,20 @@ export function createRuntime<
         serviceData,
         target,
       );
+    },
+
+    getEntityState(entityName) {
+      if (!currentState) {
+        throw new Error("No state available yet");
+      }
+
+      const entity = currentState[entityName];
+
+      if (!entity) {
+        throw new Error(`Entity ${entityName} not found`);
+      }
+
+      return convertEntityState(entityName, entity.state);
     },
   };
 
