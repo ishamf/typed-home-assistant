@@ -13,7 +13,7 @@ import { connect, StateType } from "../lib.ts";
 
 const outTemplate = template.program(
   `
-import { createRuntime, StateType } from "jsr:@isham/typed-home-assistant@^0.1";
+import { createRuntime, StateType } from "jsr:@isham/typed-home-assistant@^0.2";
 
 %%entities%%
 

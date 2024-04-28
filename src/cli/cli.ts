@@ -57,7 +57,7 @@ async function main() {
   let isNewFile = false;
 
   try {
-    Deno.stat(outputFile);
+    await Deno.stat(outputFile);
   } catch (e) {
     if (!(e instanceof Deno.errors.NotFound)) {
       throw e;
