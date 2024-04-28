@@ -8,7 +8,7 @@
   },
   "exports": {
     ".": "./src/cli/cli.ts",
-    "lib": "./src/lib.ts"
+    "./lib": "./src/lib.ts"
   },
   "imports": {
     "jsr:@isham/typed-home-assistant@^0.1": "./src/lib.ts"
