@@ -1,8 +1,8 @@
 import { writeFile } from "node:fs/promises";
 
 import {
-  HassEntities,
-  HassServices,
+  type HassEntities,
+  type HassServices,
   subscribeEntities,
   subscribeServices,
 } from "../deps.ts";
@@ -13,7 +13,7 @@ import { connect, StateType } from "../lib.ts";
 
 const outTemplate = template.program(
   `
-import { createRuntime, StateType } from "./lib.ts";
+import { createRuntime, StateType } from "jsr:@isham/typed-home-assistant@^0.1";
 
 %%entities%%
 
@@ -169,8 +169,4 @@ export async function generate(output: string) {
   });
 
   await writeFile(output, (babelGenerate(out)).code);
-}
-
-if (import.meta.main) {
-  generate("autogen.ts");
 }
