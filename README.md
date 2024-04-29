@@ -2,9 +2,11 @@
 
 Write [Home Assistant](https://www.home-assistant.io/) automations using TypeScript.
 
+[![JSR](https://jsr.io/badges/@isham/typed-home-assistant)](https://jsr.io/@isham/typed-home-assistant)
+
 ## Quick Start
 
-You can use the Deno and Node templates to quickly set up an automation project.
+You can use the [Deno template](https://github.com/ishamf/typed-home-assistant-template-deno) or [Node template](https://github.com/ishamf/typed-home-assistant-template-node) to quickly set up an automation project.
 
 ```sh
 # For Deno
@@ -36,7 +38,7 @@ ha.onStateChange("input_number.some_test", (state, { prevState }) => {
 
 Entity IDs, service IDs, and service parameters will be type-checked and autocompleted.
 
-## Manual Setup 
+## Manual Setup
 
 ### Deno
 
