@@ -4,21 +4,20 @@ Write [Home Assistant](https://www.home-assistant.io/) automations using TypeScr
 
 ## Quick Start
 
-First, set up the connection to your instance and generate the types:
+You can use the Deno and Node templates to quickly set up an automation project.
 
 ```sh
-> deno run -A jsr:@isham/typed-home-assistant@^0.2/cli
+# For Deno
+deno run -A npm:degit https://github.com/ishamf/typed-home-assistant-template-deno project-name
 
-? Enter your Home Assistant instance URL: https://demo.home-assistant.io
-? Paste in your long-lived access token (create it in https://demo.home-assistant.io/profile/security > Long-lived access tokens)
-The URL and token has been saved to .env.
-Generating ha.ts...
-Generation successful!
-Start writing your automations by importing the connection:
-import ha from './ha';
+# For Node
+npx degit https://github.com/ishamf/typed-home-assistant-template-node project-name
 ```
 
-Then, write your automations using methods in the `ha` instance.
+You'll need to run `deno task update` or `npm run update` to connect to your HA instance and generate the types.
+
+Once it's set up, write your automations using methods in the `ha` instance.
+[Check out the docs](https://jsr.io/@isham/typed-home-assistant/doc/~/Runtime) to see what methods are available.
 
 ```ts
 // main.ts
@@ -37,11 +36,35 @@ ha.onStateChange("input_number.some_test", (state, { prevState }) => {
 
 Entity IDs, service IDs, and service parameters will be type-checked and autocompleted.
 
+## Manual Setup 
+
+### Deno
+
+First, set up the connection to your instance and generate the types:
+
+```sh
+> deno run -A jsr:@isham/typed-home-assistant@^0.2/cli
+
+? Enter your Home Assistant instance URL: https://demo.home-assistant.io
+? Paste in your long-lived access token (create it in https://demo.home-assistant.io/profile/security > Long-lived access tokens)
+The URL and token has been saved to .env.
+Generating ha.ts...
+Generation successful!
+Start writing your automations by importing the connection:
+import ha from './ha';
+```
+
+You can write the automations in a separate file that imports `ha.ts`.
+
 After you're done, run it using Deno:
 
 ```
 deno run --allow-read --allow-env --allow-net main.ts
 ```
+
+### Node
+
+Setting this up in node is a bit tricky. You can refer to the [template](https://github.com/ishamf/typed-home-assistant-template-node) for the detailed changes needed.
 
 ## Updating the Types
 
