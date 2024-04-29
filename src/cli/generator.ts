@@ -12,9 +12,13 @@ import { generate as babelGenerate, t, template } from "./deps.ts";
 import { connect, StateType } from "../lib.ts";
 import { PACKAGE_VERSION } from "../constants.ts";
 
+const importSpec = "Deno" in globalThis
+  ? `jsr:@isham/typed-home-assistant@^${PACKAGE_VERSION}`
+  : "@isham/typed-home-assistant";
+
 const outTemplate = template.program(
   `
-import { createRuntime, StateType } from "jsr:@isham/typed-home-assistant@^${PACKAGE_VERSION}";
+import { createRuntime, StateType } from "${importSpec}";
 
 %%entities%%
 
