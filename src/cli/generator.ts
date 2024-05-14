@@ -9,7 +9,8 @@ import {
 
 import { generate as babelGenerate, t, template } from "./deps.ts";
 
-import { connect, StateType } from "../lib.ts";
+import { connect } from "../lib.ts";
+import { StateType } from "../types.ts";
 import { PACKAGE_VERSION } from "../constants.ts";
 
 const importSpec = "Deno" in globalThis

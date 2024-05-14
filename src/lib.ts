@@ -13,78 +13,23 @@ import {
   createLongLivedTokenAuth,
   existsSync,
   type HassEntities,
-  type HassEntity,
   type HassServiceTarget,
   parse,
   process,
   readFile,
   subscribeEntities,
 } from "../src/deps.ts";
+import {
+  type EntityAttributeStateType,
+  type EntityDefinition,
+  type EntityStateType,
+  type EntityUpdateHandler,
+  type ServiceDefinition,
+  type StateChangeHandler,
+  StateType,
+} from "./types.ts";
+
 import { createChangeHelper } from "./utils.ts";
-
-/**
- * The type of the state of an entity. Only for internal use.
- *
- * @internal
- */
-export enum StateType {
-  Number,
-  String,
-}
-
-export type StateTypeToRealType<S> = S extends StateType.Number ? number
-  : string;
-
-export type EntityDefinition = {
-  [entityId: string]: {
-    stateType: StateType;
-    attributes: {
-      [attributeId: string]: { attrType: StateType };
-    };
-  };
-};
-
-export type EntityStateType<
-  Entities extends EntityDefinition,
-  K extends keyof Entities,
-> = StateTypeToRealType<Entities[K]["stateType"]>;
-
-export type EntityAttributeStateType<
-  Entities extends EntityDefinition,
-  K extends keyof Entities,
-  A extends keyof Entities[K]["attributes"],
-> = StateTypeToRealType<Entities[K]["attributes"][A]["attrType"]>;
-
-export type ServiceDefinition = {
-  [fullServiceId: string]: {
-    fields: {
-      [fieldId: string]: unknown;
-    };
-  };
-};
-
-/**
- * Handler for when the state or of an entity changes.
- */
-export type StateChangeHandler<T> = (
-  /**
-   * The new state of the entity.
-   */
-  state: T,
-  extra: {
-    /**
-     * The previous state of the entity.
-     */
-    prevState: T;
-  },
-) => void;
-
-type EntityUpdateHandler = (
-  /**
-   * The new state of the entity.
-   */
-  entity: HassEntity,
-) => void;
 
 export const ENV_FILENAME = ".env";
 
@@ -114,6 +59,35 @@ export async function connect() {
   );
 
   return await createConnection({ auth });
+}
+
+/**
+ * A helper to only call the change handler when the predicate switches to true.
+ *
+ * @param predicate Predicate to check
+ * @param onChange The state change handler to call
+ */
+export function withPredicate<T>(
+  predicate: (x: T) => boolean,
+  onChange: StateChangeHandler<T>,
+): StateChangeHandler<T> {
+  let prevPred: boolean | null = null;
+
+  return (...args) => {
+    const [state, { prevState }] = args;
+
+    if (prevPred === null) {
+      prevPred = !!predicate(prevState);
+    }
+
+    const currentPred = !!predicate(state);
+
+    if (currentPred && !prevPred) {
+      onChange(...args);
+    }
+
+    prevPred = currentPred;
+  };
 }
 
 /**
