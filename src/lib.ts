@@ -8,6 +8,7 @@
 
 import {
   callService,
+  Connection,
   createConnection,
   createLongLivedTokenAuth,
   existsSync,
@@ -103,10 +104,92 @@ export async function connect() {
 /**
  * The runtime for interacting with Home Assistant.
  */
-export interface Runtime<
+export class Runtime<
   Entities extends EntityDefinition,
   Services extends ServiceDefinition,
 > {
+  /**
+   * The definition of entities, used for converting state types from string.
+   */
+  private entityDefinition: Entities;
+
+  /**
+   * The definition of services (currently unused at runtime)
+   */
+  private serviceDefinition: Services;
+
+  /**
+   * Change handlers for various entities
+   */
+  private handlersByEntityName: {
+    [K in keyof Entities]?: StateChangeHandler<EntityStateType<Entities, K>>[];
+  };
+
+  /**
+   * Current and previous states
+   */
+  private currentState: HassEntities | undefined;
+  private prevState: HassEntities | undefined;
+
+  /**
+   * Promise for a connection to HA.
+   */
+  private connPromise: Promise<Connection>;
+
+  constructor(entityDefinition: Entities, serviceDefinition: Services) {
+    this.entityDefinition = entityDefinition;
+    this.serviceDefinition = serviceDefinition;
+    this.handlersByEntityName = {};
+    this.connPromise = connect();
+
+    this.connPromise.then((conn) => {
+      subscribeEntities(conn, (state) => {
+        this.currentState = state;
+        for (const key in state) {
+          if (
+            this.prevState &&
+            state[key].state !== this.prevState[key].state
+          ) {
+            const entityState = this.convertEntityState(
+              key,
+              state[key].state,
+            );
+            const prevEntityState = this.convertEntityState(
+              key,
+              this.prevState[key].state,
+            );
+            this.handlersByEntityName[key]?.forEach((handler) => {
+              try {
+                handler(entityState, { prevState: prevEntityState });
+              } catch (e) {
+                console.error(`A state handler for '${key}' threw an error:`);
+                console.error(e);
+              }
+            });
+          }
+        }
+
+        this.prevState = state;
+      });
+    });
+  }
+
+  /**
+   * Convert the specified value based on the type of the entity referred to by the key.
+   */
+  private convertEntityState<K extends keyof Entities>(
+    key: K,
+    value: string,
+  ): EntityStateType<Entities, K> {
+    if (this.entityDefinition[key].stateType === StateType.Number) {
+      // deno-lint-ignore no-explicit-any
+      return parseFloat(value) as any;
+    }
+
+    // deno-lint-ignore no-explicit-any
+    return value as any;
+  }
+
   /**
    * Register a listener of when the state of an entity changes.
    * @param entityName Name of the entity to listen to.
@@ -115,7 +198,15 @@ export interface Runtime<
   onStateChange<K extends keyof Entities>(
     entityName: K,
     handler: StateChangeHandler<EntityStateType<Entities, K>>,
-  ): void;
+  ): void {
+    let currentHandlers = this.handlersByEntityName[entityName];
+
+    if (!currentHandlers) {
+      currentHandlers = this.handlersByEntityName[entityName] = [];
+    }
+
+    currentHandlers.push(handler);
+  }
 
   /**
    * Call a service in home assistant.
@@ -124,7 +215,7 @@ export interface Runtime<
    * @param serviceData The params to pass to the service.
    * @param target The target of the service call. e.g. for switch.turn_on, this would be {entity_id: ["switch.living_room_light"] }
    */
-  callService<K extends keyof Services & string>(
+  async callService<K extends keyof Services & string>(
     fullServiceId: K,
     serviceData?: Services[K]["fields"],
     target?: Omit<HassServiceTarget, "entity_id"> & {
@@ -133,7 +224,22 @@ export interface Runtime<
         | (keyof Entities & string)[]
         | undefined;
     },
-  ): Promise<unknown>;
+  ): Promise<unknown> {
+    const splitServiceId = fullServiceId.split(".");
+    if (splitServiceId.length !== 2) {
+      throw new Error("Unknown service id");
+    }
+
+    const [domainId, serviceId] = splitServiceId;
+
+    return callService(
+      await this.connPromise,
+      domainId,
+      serviceId,
+      serviceData,
+      target,
+    );
+  }
 
   /**
    * Get the current state of an entity.
@@ -142,7 +248,26 @@ export interface Runtime<
    */
   getEntityState<K extends keyof Entities & string>(
     entityName: K,
-  ): EntityStateType<Entities, K>;
+  ): EntityStateType<Entities, K> {
+    if (!this.currentState) {
+      throw new Error("No state available yet");
+    }
+
+    const entity = this.currentState[entityName];
+
+    if (!entity) {
+      throw new Error(`Entity ${entityName} not found`);
+    }
+
+    return this.convertEntityState(entityName, entity.state);
+  }
+
+  /**
+   * Close the connection to home assistant.
+   */
+  async close() {
+    (await this.connPromise).close();
+  }
 }
 
 /**
@@ -155,109 +280,7 @@ export function createRuntime<
   Services extends ServiceDefinition,
 >(
   entityDefinition: Entities,
-  _serviceDefinition: Services,
+  serviceDefinition: Services,
 ): Runtime<Entities, Services> {
-  let prevState: HassEntities | undefined;
-  let currentState: HassEntities | undefined;
-
-  function convertEntityState<K extends keyof Entities>(
-    key: K,
-    value: string,
-  ): EntityStateType<Entities, K> {
-    if (entityDefinition[key].stateType === StateType.Number) {
-      // deno-lint-ignore no-explicit-any
-      return parseFloat(value) as any;
-    }
-
-    // deno-lint-ignore no-explicit-any
-    return value as any;
-  }
-
-  const handlersByEntityName = {} as {
-    [K in keyof Entities]:
-      | StateChangeHandler<EntityStateType<Entities, K>>[]
-      | undefined;
-  };
-
-  const connPromise = connect();
-
-  connPromise.then((conn) => {
-    subscribeEntities(conn, (state) => {
-      currentState = state;
-      for (const key in state) {
-        if (
-          prevState &&
-          state[key].state !== prevState[key].state
-        ) {
-          const entityState = convertEntityState(
-            key,
-            state[key].state,
-          );
-          const prevEntityState = convertEntityState(key, prevState[key].state);
-          handlersByEntityName[key]?.forEach((handler) => {
-            try {
-              handler(entityState, { prevState: prevEntityState });
-            } catch (e) {
-              console.error(`A state handler for '${key}' threw an error:`);
-              console.error(e);
-            }
-          });
-        }
-      }
-
-      prevState = state;
-    });
-  });
-
-  const runtime: Runtime<Entities, Services> = {
-    onStateChange(
-      entityName,
-      handler,
-    ) {
-      let currentHandlers = handlersByEntityName[entityName];
-
-      if (!currentHandlers) {
-        currentHandlers = handlersByEntityName[entityName] = [];
-      }
-
-      currentHandlers.push(handler);
-    },
-
-    async callService(
-      fullServiceId,
-      serviceData,
-      target,
-    ) {
-      const splitServiceId = fullServiceId.split(".");
-      if (splitServiceId.length !== 2) {
-        throw new Error("Unknown service id");
-      }
-
-      const [domainId, serviceId] = splitServiceId;
-
-      return callService(
-        await connPromise,
-        domainId,
-        serviceId,
-        serviceData,
-        target,
-      );
-    },
-
-    getEntityState(entityName) {
-      if (!currentState) {
-        throw new Error("No state available yet");
-      }
-
-      const entity = currentState[entityName];
-
-      if (!entity) {
-        throw new Error(`Entity ${entityName} not found`);
-      }
-
-      return convertEntityState(entityName, entity.state);
-    },
-  };
-
-  return runtime;
+  return new Runtime(entityDefinition, serviceDefinition);
 }
