@@ -8,17 +8,19 @@
 
 import {
   callService,
-  Connection,
+  type Connection,
   createConnection,
   createLongLivedTokenAuth,
   existsSync,
   type HassEntities,
+  type HassEntity,
   type HassServiceTarget,
   parse,
   process,
   readFile,
   subscribeEntities,
 } from "../src/deps.ts";
+import { createChangeHelper } from "./utils.ts";
 
 /**
  * The type of the state of an entity. Only for internal use.
@@ -47,6 +49,12 @@ export type EntityStateType<
   K extends keyof Entities,
 > = StateTypeToRealType<Entities[K]["stateType"]>;
 
+export type EntityAttributeStateType<
+  Entities extends EntityDefinition,
+  K extends keyof Entities,
+  A extends keyof Entities[K]["attributes"],
+> = StateTypeToRealType<Entities[K]["attributes"][A]["attrType"]>;
+
 export type ServiceDefinition = {
   [fullServiceId: string]: {
     fields: {
@@ -56,7 +64,7 @@ export type ServiceDefinition = {
 };
 
 /**
- * Handler for when the state of an entity changes.
+ * Handler for when the state or of an entity changes.
  */
 export type StateChangeHandler<T> = (
   /**
@@ -69,6 +77,13 @@ export type StateChangeHandler<T> = (
      */
     prevState: T;
   },
+) => void;
+
+type EntityUpdateHandler = (
+  /**
+   * The new state of the entity.
+   */
+  entity: HassEntity,
 ) => void;
 
 export const ENV_FILENAME = ".env";
@@ -122,7 +137,7 @@ export class Runtime<
    * Change handlers for various entities
    */
   private handlersByEntityName: {
-    [K in keyof Entities]?: StateChangeHandler<EntityStateType<Entities, K>>[];
+    [K in keyof Entities]?: EntityUpdateHandler[];
   };
 
   /**
@@ -136,37 +151,38 @@ export class Runtime<
    */
   private connPromise: Promise<Connection>;
 
+  private getStatePromise: Promise<() => HassEntities>;
+
   constructor(entityDefinition: Entities, serviceDefinition: Services) {
     this.entityDefinition = entityDefinition;
     this.serviceDefinition = serviceDefinition;
     this.handlersByEntityName = {};
     this.connPromise = connect();
 
+    let resolve: ((x: () => HassEntities) => void) | null;
+
+    this.getStatePromise = new Promise((r) => {
+      resolve = r;
+    });
+
     this.connPromise.then((conn) => {
       subscribeEntities(conn, (state) => {
         this.currentState = state;
-        for (const key in state) {
-          if (
-            this.prevState &&
-            state[key].state !== this.prevState[key].state
-          ) {
-            const entityState = this.convertEntityState(
-              key,
-              state[key].state,
-            );
-            const prevEntityState = this.convertEntityState(
-              key,
-              this.prevState[key].state,
-            );
-            this.handlersByEntityName[key]?.forEach((handler) => {
-              try {
-                handler(entityState, { prevState: prevEntityState });
-              } catch (e) {
-                console.error(`A state handler for '${key}' threw an error:`);
-                console.error(e);
-              }
-            });
-          }
+
+        if (resolve) {
+          resolve(() => this.currentState!);
+          resolve = null;
+        }
+
+        for (const key in this.handlersByEntityName) {
+          this.handlersByEntityName[key]?.forEach((handler) => {
+            try {
+              handler(state[key]);
+            } catch (e) {
+              console.error(`A state handler for '${key}' threw an error:`);
+              console.error(e);
+            }
+          });
         }
 
         this.prevState = state;
@@ -190,15 +206,10 @@ export class Runtime<
     return value as any;
   }
 
-  /**
-   * Register a listener of when the state of an entity changes.
-   * @param entityName Name of the entity to listen to.
-   * @param handler Handler to call when the state changes.
-   */
-  onStateChange<K extends keyof Entities>(
+  private onEntityUpdated<K extends keyof Entities>(
     entityName: K,
-    handler: StateChangeHandler<EntityStateType<Entities, K>>,
-  ): void {
+    handler: EntityUpdateHandler,
+  ) {
     let currentHandlers = this.handlersByEntityName[entityName];
 
     if (!currentHandlers) {
@@ -206,6 +217,55 @@ export class Runtime<
     }
 
     currentHandlers.push(handler);
+  }
+
+  /**
+   * Register a listener of when the state of an entity changes.
+   * @param entityName Name of the entity to listen to.
+   * @param handler Handler to call when the state changes.
+   */
+  onStateChange<K extends keyof Entities & string>(
+    entityName: K,
+    handler: StateChangeHandler<EntityStateType<Entities, K>>,
+  ): void {
+    this.getStatePromise.then(() => {
+      const current = this.getEntityState(entityName);
+
+      const helper = createChangeHelper(current, (current, prev) => {
+        handler(current, { prevState: prev });
+      });
+
+      this.onEntityUpdated(entityName, (entity) => {
+        helper(this.convertEntityState(entityName, entity.state));
+      });
+    });
+  }
+
+  /**
+   * Register a listener of when an attribute of an entity changes.
+   * @param entityName Name of the entity to listen to.
+   * @param attribute Name of the attribute to listen to.
+   * @param handler Handler to call when the state changes.
+   */
+  onEntityAttributeChange<
+    K extends keyof Entities & string,
+    A extends keyof Entities[K]["attributes"] & string,
+  >(
+    entityName: K,
+    attribute: A,
+    handler: StateChangeHandler<EntityAttributeStateType<Entities, K, A>>,
+  ): void {
+    this.getStatePromise.then(() => {
+      const current = this.getEntityAttributeState(entityName, attribute);
+
+      const helper = createChangeHelper(current, (current, prev) => {
+        handler(current, { prevState: prev });
+      });
+
+      this.onEntityUpdated(entityName, (entity) => {
+        helper(entity.attributes[attribute]);
+      });
+    });
   }
 
   /**
@@ -260,6 +320,33 @@ export class Runtime<
     }
 
     return this.convertEntityState(entityName, entity.state);
+  }
+
+  /**
+   * Get the value of an entity's attribute.
+   *
+   * @param entityName Name of the entity.
+   * @param attribute Name of the attribute.
+   * @returns
+   */
+  getEntityAttributeState<
+    K extends keyof Entities & string,
+    A extends keyof Entities[K]["attributes"] & string,
+  >(
+    entityName: K,
+    attribute: A,
+  ): EntityAttributeStateType<Entities, K, A> {
+    if (!this.currentState) {
+      throw new Error("No state available yet");
+    }
+
+    const entity = this.currentState[entityName];
+
+    if (!entity) {
+      throw new Error(`Entity ${entityName} not found`);
+    }
+
+    return entity.attributes[attribute];
   }
 
   /**

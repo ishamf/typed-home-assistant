@@ -1,12 +1,16 @@
 # typed-home-assistant
 
-Write [Home Assistant](https://www.home-assistant.io/) automations using TypeScript.
+Write [Home Assistant](https://www.home-assistant.io/) automations using
+TypeScript.
 
 [![JSR](https://jsr.io/badges/@isham/typed-home-assistant)](https://jsr.io/@isham/typed-home-assistant)
 
 ## Quick Start
 
-You can use the [Deno template](https://github.com/ishamf/typed-home-assistant-template-deno) or [Node template](https://github.com/ishamf/typed-home-assistant-template-node) to quickly set up an automation project.
+You can use the
+[Deno template](https://github.com/ishamf/typed-home-assistant-template-deno) or
+[Node template](https://github.com/ishamf/typed-home-assistant-template-node) to
+quickly set up an automation project.
 
 ```sh
 # For Deno
@@ -16,10 +20,12 @@ deno run -A npm:degit https://github.com/ishamf/typed-home-assistant-template-de
 npx degit https://github.com/ishamf/typed-home-assistant-template-node project-name
 ```
 
-You'll need to run `deno task update` or `npm run update` to connect to your HA instance and generate the types.
+You'll need to run `deno task update` or `npm run update` to connect to your HA
+instance and generate the types.
 
 Once it's set up, write your automations using methods in the `ha` instance.
-[Check out the docs](https://jsr.io/@isham/typed-home-assistant/doc/~/Runtime) to see what methods are available.
+[Check out the docs](https://jsr.io/@isham/typed-home-assistant/doc/~/Runtime)
+to see what methods are available.
 
 ```ts
 // main.ts
@@ -30,13 +36,14 @@ ha.onStateChange("input_number.some_test", (state, { prevState }) => {
     ha.callService(
       "input_number.set_value",
       { value: 10 },
-      { entity_id: "input_number.some_test" }
+      { entity_id: "input_number.some_test" },
     );
   }
 });
 ```
 
-Entity IDs, service IDs, and service parameters will be type-checked and autocompleted.
+Entity IDs, service IDs, and service parameters will be type-checked and
+autocompleted.
 
 ## Manual Setup
 
@@ -66,7 +73,9 @@ deno run --allow-read --allow-env --allow-net main.ts
 
 ### Node
 
-Setting this up in node is a bit tricky. You can refer to the [template](https://github.com/ishamf/typed-home-assistant-template-node) for the detailed changes needed.
+Setting this up in node is a bit tricky. You can refer to the
+[template](https://github.com/ishamf/typed-home-assistant-template-node) for the
+detailed changes needed.
 
 ## Updating the Types
 
