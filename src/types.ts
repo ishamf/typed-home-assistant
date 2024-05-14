@@ -6,8 +6,18 @@
 
 import type { HassEntity } from "./deps.ts";
 
+/**
+ * The possible types for an entity's state.
+ */
 export enum StateType {
+  /**
+   * Numeric type.
+   */
   Number,
+
+  /**
+   * String type.
+   */
   String,
 }
 

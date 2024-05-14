@@ -115,10 +115,9 @@ export class Runtime<
   };
 
   /**
-   * Current and previous states
+   * Current state of all entiites.
    */
   private currentState: HassEntities | undefined;
-  private prevState: HassEntities | undefined;
 
   /**
    * Promise for a connection to HA.
@@ -158,8 +157,6 @@ export class Runtime<
             }
           });
         }
-
-        this.prevState = state;
       });
     });
   }
@@ -180,6 +177,9 @@ export class Runtime<
     return value as any;
   }
 
+  /**
+   * Register a listener of when an entity is updated (might have no changes)
+   */
   private onEntityUpdated<K extends keyof Entities>(
     entityName: K,
     handler: EntityUpdateHandler,
