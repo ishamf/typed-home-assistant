@@ -42,30 +42,33 @@ ha.onStateChange("input_number.some_test", (state, { prevState }) => {
 });
 
 // Attributes
-ha.onEntityAttributeChange('input_number.some_test', 'step', attr => {
-  console.log('Step changed:', attr)
-})
+ha.onEntityAttributeChange("input_number.some_test", "step", (attr) => {
+  console.log("Step changed:", attr);
+});
 ```
 
-Entity IDs, service IDs, attribute names, and service parameters will be type-checked and
-autocompleted.
+Entity IDs, service IDs, attribute names, and service parameters will be
+type-checked and autocompleted.
 
 ## Helper Functions
 
-This package also provides some helper functions to make it easier to write automations.
+This package also provides some helper functions to make it easier to write
+automations.
 
 ### `withPredicate`
 
-`withPredicate` can be used to evaluate a predicate, and only run the handler when the predicate switches from `false` to `true`.
+`withPredicate` can be used to evaluate a predicate, and only run the handler
+when the predicate switches from `false` to `true`.
 
 ```ts
-import { withPredicate } from 'jsr:@isham/typed-home-assistant'
+import { withPredicate } from "jsr:@isham/typed-home-assistant";
 
-
-ha.onStateChange('sensor.wifi_modem_battery_level', withPredicate(x => x < 30, () => {
-  ha.callService('notify.telegram', { message: 'Wifi modem battery low!' })
-}))
-
+ha.onStateChange(
+  "sensor.wifi_modem_battery_level",
+  withPredicate((x) => x < 30, () => {
+    ha.callService("notify.telegram", { message: "Wifi modem battery low!" });
+  }),
+);
 ```
 
 ## Manual Setup
