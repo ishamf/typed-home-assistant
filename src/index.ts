@@ -1,3 +1,4 @@
-export { createRuntime, withPredicate } from "./lib.ts";
+export { createRuntime, Runtime } from "./lib.ts";
+export { multiPredicate, withPredicate } from "./helpers.ts";
 export { StateType } from "./types.ts";
-export type { Runtime } from "./lib.ts";
+export type { EntityDefinition, ServiceDefinition } from "./types.ts";

@@ -33,9 +33,12 @@ import ha from "./ha.ts";
 
 ha.onStateChange("input_number.some_test", (state, { prevState }) => {
   if (state > 50 && prevState < 50) {
+    // Getting other entity states
+    const otherState = ha.getEntityState("input_number.min_value");
+
     ha.callService(
       "input_number.set_value",
-      { value: 10 },
+      { value: otherState },
       { entity_id: "input_number.some_test" },
     );
   }
@@ -69,6 +72,48 @@ ha.onStateChange(
     ha.callService("notify.telegram", { message: "Wifi modem battery low!" });
   }),
 );
+```
+
+### `multiPredicate`
+
+`multiPredicate` can be used to register handlers that runs when the state of
+multiple predicates are true.
+
+```ts
+import { multiPredicate } from "jsr:@isham/typed-home-assistant";
+
+multiPredicate(ha)
+  .with("person.isham", (x) => x === "home")
+  .with("sun.sun", (x) => x === "below_horizon")
+  .do(() => { // true callback
+    ha.callService("switch.turn_on", {}, {
+      entity_id: "switch.living_room_lights",
+    });
+  }, () => { // false callback
+    ha.callService("switch.turn_off", {}, {
+      entity_id: "switch.living_room_lights",
+    });
+  });
+```
+
+The builders are immutable, so you can reuse them to make multiple listeners.
+The states that you checked will be passed to the handlers.
+
+```ts
+const whenHome = multiPredicate(ha)
+  .with("person.isham", (x) => x === "home");
+
+whenHome.do(() => {
+  ha.callService("climate.turn_on", {}, { entity_id: "fan.living_room_fan" });
+});
+
+whenHome.with("sensor.isham_s_tablet_battery_level", (x) => x < 30)
+  // `person.isham` and `sensor.isham_s_tablet_battery_level` states will be passed
+  .do((location, battery) => {
+    ha.callService("notify.isham", {
+      message: `You're ${location}, charge that tablet! It's at ${battery}%`,
+    });
+  });
 ```
 
 ## Manual Setup

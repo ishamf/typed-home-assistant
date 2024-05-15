@@ -24,6 +24,7 @@ import {
   type EntityDefinition,
   type EntityStateType,
   type EntityUpdateHandler,
+  type Remover,
   type ServiceDefinition,
   type StateChangeHandler,
   StateType,
@@ -62,35 +63,6 @@ export async function connect() {
 }
 
 /**
- * A helper to only call the change handler when the predicate switches to true.
- *
- * @param predicate Predicate to check
- * @param onChange The state change handler to call
- */
-export function withPredicate<T>(
-  predicate: (x: T) => boolean,
-  onChange: StateChangeHandler<T>,
-): StateChangeHandler<T> {
-  let prevPred: boolean | null = null;
-
-  return (...args) => {
-    const [state, { prevState }] = args;
-
-    if (prevPred === null) {
-      prevPred = !!predicate(prevState);
-    }
-
-    const currentPred = !!predicate(state);
-
-    if (currentPred && !prevPred) {
-      onChange(...args);
-    }
-
-    prevPred = currentPred;
-  };
-}
-
-/**
  * The runtime for interacting with Home Assistant.
  */
 export class Runtime<
@@ -120,6 +92,11 @@ export class Runtime<
   private currentState: HassEntities | undefined;
 
   /**
+   * Previous state of all entiites.
+   */
+  private prevState: HassEntities | undefined;
+
+  /**
    * Promise for a connection to HA.
    */
   private connPromise: Promise<Connection>;
@@ -140,6 +117,7 @@ export class Runtime<
 
     this.connPromise.then((conn) => {
       subscribeEntities(conn, (state) => {
+        if (!this.prevState) this.prevState = state;
         this.currentState = state;
 
         if (resolve) {
@@ -157,6 +135,8 @@ export class Runtime<
             }
           });
         }
+
+        this.prevState = state;
       });
     });
   }
@@ -183,7 +163,7 @@ export class Runtime<
   private onEntityUpdated<K extends keyof Entities>(
     entityName: K,
     handler: EntityUpdateHandler,
-  ) {
+  ): Remover {
     let currentHandlers = this.handlersByEntityName[entityName];
 
     if (!currentHandlers) {
@@ -191,6 +171,10 @@ export class Runtime<
     }
 
     currentHandlers.push(handler);
+
+    return () => {
+      currentHandlers.splice(currentHandlers.indexOf(handler), 1);
+    };
   }
 
   /**
@@ -201,7 +185,12 @@ export class Runtime<
   onStateChange<K extends keyof Entities & string>(
     entityName: K,
     handler: StateChangeHandler<EntityStateType<Entities, K>>,
-  ): void {
+  ): Remover {
+    let resolveRemover: (r: Remover) => void;
+    const outerRemoverPromise = new Promise<Remover>((resolve) => {
+      resolveRemover = resolve;
+    });
+
     this.getStatePromise.then(() => {
       const current = this.getEntityState(entityName);
 
@@ -209,10 +198,16 @@ export class Runtime<
         handler(current, { prevState: prev });
       });
 
-      this.onEntityUpdated(entityName, (entity) => {
+      const innerRemover = this.onEntityUpdated(entityName, (entity) => {
         helper(this.convertEntityState(entityName, entity.state));
       });
+
+      resolveRemover(innerRemover);
     });
+
+    return () => {
+      outerRemoverPromise.then((r) => r());
+    };
   }
 
   /**
@@ -228,7 +223,12 @@ export class Runtime<
     entityName: K,
     attribute: A,
     handler: StateChangeHandler<EntityAttributeStateType<Entities, K, A>>,
-  ): void {
+  ): Remover {
+    let resolveRemover: (r: Remover) => void;
+    const outerRemoverPromise = new Promise<Remover>((resolve) => {
+      resolveRemover = resolve;
+    });
+
     this.getStatePromise.then(() => {
       const current = this.getEntityAttributeState(entityName, attribute);
 
@@ -236,10 +236,16 @@ export class Runtime<
         handler(current, { prevState: prev });
       });
 
-      this.onEntityUpdated(entityName, (entity) => {
+      const innerRemover = this.onEntityUpdated(entityName, (entity) => {
         helper(entity.attributes[attribute]);
       });
+
+      resolveRemover(innerRemover);
     });
+
+    return () => {
+      outerRemoverPromise.then((r) => r());
+    };
   }
 
   /**
@@ -279,15 +285,17 @@ export class Runtime<
    * Get the current state of an entity.
    *
    * @param entityName Name of the entity to get the state of.
+   * @param prev whether to get the state in the previous update. Only valid if used synchronously inside onChange handlers
    */
   getEntityState<K extends keyof Entities & string>(
     entityName: K,
+    prev = false,
   ): EntityStateType<Entities, K> {
-    if (!this.currentState) {
+    if (!this.currentState || !this.prevState) {
       throw new Error("No state available yet");
     }
 
-    const entity = this.currentState[entityName];
+    const entity = (prev ? this.prevState : this.currentState)[entityName];
 
     if (!entity) {
       throw new Error(`Entity ${entityName} not found`);
@@ -301,6 +309,7 @@ export class Runtime<
    *
    * @param entityName Name of the entity.
    * @param attribute Name of the attribute.
+   * @param prev whether to get the state in the previous update. Only valid if used synchronously inside onChange handlers
    * @returns
    */
   getEntityAttributeState<
@@ -309,12 +318,13 @@ export class Runtime<
   >(
     entityName: K,
     attribute: A,
+    prev = false,
   ): EntityAttributeStateType<Entities, K, A> {
-    if (!this.currentState) {
+    if (!this.currentState || !this.prevState) {
       throw new Error("No state available yet");
     }
 
-    const entity = this.currentState[entityName];
+    const entity = (prev ? this.prevState : this.currentState)![entityName];
 
     if (!entity) {
       throw new Error(`Entity ${entityName} not found`);

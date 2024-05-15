@@ -75,3 +75,8 @@ export type EntityUpdateHandler = (
    */
   entity: HassEntity,
 ) => void;
+
+/**
+ * Function to remove a listener.
+ */
+export type Remover = () => void;
