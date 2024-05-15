@@ -1,6 +1,6 @@
 {
   "name": "@isham/typed-home-assistant",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "tasks": {
     "lint": "deno lint",
     "format": "deno lint --fix && deno fmt",
