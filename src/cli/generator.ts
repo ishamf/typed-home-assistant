@@ -30,6 +30,12 @@ export default createRuntime(entities, services);
   { plugins: ["typescript"] },
 );
 
+/**
+ * Guess the type of an entity/attribute based on the current state
+ * 
+ * @param state State string from HA
+ * @returns 
+ */
 function guessStateType(state: string) {
   if (!isNaN(parseFloat(state))) {
     return StateType.Number;
@@ -43,7 +49,12 @@ const stateTypeAst = {
   [StateType.String]: template.expression.ast(`StateType.String`),
 };
 
-export async function generate(output: string) {
+/**
+ * Generate the runtime file based on the currently connected HA instance
+ * 
+ * @param outputPath destination path for the output
+ */
+export async function generate(outputPath: string) {
   const conn = await connect();
   // Get events and services
 
@@ -205,5 +216,5 @@ export async function generate(output: string) {
     services: servicesAst,
   });
 
-  await writeFile(output, (babelGenerate(out)).code);
+  await writeFile(outputPath, (babelGenerate(out)).code);
 }
