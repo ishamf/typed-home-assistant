@@ -64,6 +64,9 @@ export async function generate(output: string) {
 
   conn.close();
 
+  /**
+   * Used to define entities
+   */
   const entityTemplate = template.expression(
     `{
       stateType: %%stateType%%,
@@ -71,12 +74,23 @@ export async function generate(output: string) {
     }`,
   );
 
+  /**
+   * Used to define attributes
+   */
   const attributeTemplate = template.expression(
     `{
       attrType: %%attrType%%
     }`,
   );
 
+  /**
+   * This should produce code like this:
+   * 
+   * const entities = {
+   *   "sensor.home_weather_daily_condition": <entityTemplate> as const // entityTemplate is the template above
+   *   // ...
+   * }
+   */
   const entitiesAst = t.variableDeclaration(
     "const",
     [t.variableDeclarator(
@@ -109,6 +123,23 @@ export async function generate(output: string) {
     )],
   );
 
+  /**
+   * This should produce code like this:
+   * 
+   * const services = {
+   *   "media_player.play_media": {
+   *     fields: ({} as {
+   *       "media_content_id": string;
+   *       "media_content_type": string;
+   *       "enqueue"?: string;
+   *       "announce"?: string;
+   *     })
+   *   },
+   *   // ...
+   * }
+   * 
+   * For now, we only need the type of the params, we don't validate it
+   */
   const servicesAst = t.variableDeclaration(
     "const",
     [t.variableDeclarator(
