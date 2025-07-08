@@ -1,2 +1,4 @@
 .env
 autogen.ts
+
+.DS_Store
