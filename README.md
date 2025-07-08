@@ -5,7 +5,9 @@ TypeScript.
 
 [![JSR](https://jsr.io/badges/@isham/typed-home-assistant)](https://jsr.io/@isham/typed-home-assistant)
 
-## Quick Start
+## Setup
+
+### Using a Template
 
 You can use the
 [Deno template](https://github.com/ishamf/typed-home-assistant-template-deno) or
@@ -22,6 +24,44 @@ npx degit https://github.com/ishamf/typed-home-assistant-template-node project-n
 
 You'll need to run `deno task update` or `npm run update` to connect to your HA
 instance and generate the types.
+
+
+### Manual Setup
+
+#### Deno
+
+First, set up the connection to your instance and generate the types:
+
+```sh
+> deno run -A jsr:@isham/typed-home-assistant@^0.2/cli
+
+? Enter your Home Assistant instance URL: https://demo.home-assistant.io
+? Paste in your long-lived access token (create it in https://demo.home-assistant.io/profile/security > Long-lived access tokens)
+The URL and token has been saved to .env.
+Generating ha.ts...
+Generation successful!
+Start writing your automations by importing the connection:
+import ha from './ha';
+```
+
+You can write the automations in a separate file that imports `ha.ts`.
+
+After you're done, run it using Deno:
+
+```
+deno run --allow-read --allow-env --allow-net main.ts
+```
+
+#### Node
+
+Setting this up in node is a bit tricky. You can refer to the
+[template](https://github.com/ishamf/typed-home-assistant-template-node) for the
+detailed changes needed.
+
+
+## Usage
+
+### Writing Automations
 
 Once it's set up, write your automations using methods in the `ha` instance.
 [Check out the docs](https://jsr.io/@isham/typed-home-assistant/doc/~/Runtime)
@@ -53,12 +93,12 @@ ha.onEntityAttributeChange("input_number.some_test", "step", (attr) => {
 Entity IDs, service IDs, attribute names, and service parameters will be
 type-checked and autocompleted.
 
-## Helper Functions
+### Helper Functions
 
 This package also provides some helper functions to make it easier to write
 automations.
 
-### `withPredicate`
+#### `withPredicate`
 
 `withPredicate` can be used to evaluate a predicate, and only run the handler
 when the predicate switches from `false` to `true`.
@@ -74,7 +114,7 @@ ha.onStateChange(
 );
 ```
 
-### `multiPredicate`
+#### `multiPredicate`
 
 `multiPredicate` can be used to register handlers that runs when the state of
 multiple predicates are true.
@@ -116,39 +156,7 @@ whenHome.with("sensor.isham_s_tablet_battery_level", (x) => x < 30)
   });
 ```
 
-## Manual Setup
-
-### Deno
-
-First, set up the connection to your instance and generate the types:
-
-```sh
-> deno run -A jsr:@isham/typed-home-assistant@^0.2/cli
-
-? Enter your Home Assistant instance URL: https://demo.home-assistant.io
-? Paste in your long-lived access token (create it in https://demo.home-assistant.io/profile/security > Long-lived access tokens)
-The URL and token has been saved to .env.
-Generating ha.ts...
-Generation successful!
-Start writing your automations by importing the connection:
-import ha from './ha';
-```
-
-You can write the automations in a separate file that imports `ha.ts`.
-
-After you're done, run it using Deno:
-
-```
-deno run --allow-read --allow-env --allow-net main.ts
-```
-
-### Node
-
-Setting this up in node is a bit tricky. You can refer to the
-[template](https://github.com/ishamf/typed-home-assistant-template-node) for the
-detailed changes needed.
-
-## Updating the Types
+### Updating the Types
 
 You can re-run the CLI to update the types.
 
@@ -172,4 +180,14 @@ Set up a task in Deno to easily update the types:
 
 ```sh
 deno task update
+```
+
+### Advanced Usage
+
+#### Configuring using Environment Variables
+
+You can also pass the URL and token using environment variables instead of an `.env` file.
+
+```sh
+HOME_ASSISTANT_URL='https://demo.home-assistant.io' HOME_ASSISTANT_TOKEN='asd' npm run start
 ```
